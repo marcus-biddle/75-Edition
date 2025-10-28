@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useDashboard } from '../context/DashboardContext';
+import { HABIT_CHOICES } from './GoalSetupScreen';
 
 interface Habit {
   id: string;
@@ -11,25 +14,20 @@ interface SettingsScreenProps {
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
+  const { logout } = useAuth();
+  const { habits, toggleActiveHabit } = useDashboard();
+
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(true);
   const [completionAlerts, setCompletionAlerts] = useState<boolean>(true);
   const [darkMode, setDarkMode] = useState<boolean>(true);
-  const [fontSize, setFontSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [autoBackup, setAutoBackup] = useState<boolean>(false);
   const [reminderTime, setReminderTime] = useState<string>('09:00');
 
-  const [activeHabits, setActiveHabits] = useState<Habit[]>([
-    { id: 'water', name: 'Drink water', active: true },
-    { id: 'steps', name: 'Track daily steps', active: true },
-    { id: 'workout', name: 'Complete workout', active: true },
-    { id: 'read', name: 'Read', active: true },
-    { id: 'supplements', name: 'Take supplements', active: true },
-  ]);
-
   const toggleHabit = (habitId: string) => {
-    setActiveHabits(activeHabits.map(h =>
-      h.id === habitId ? { ...h, active: !h.active } : h
-    ));
+    // setActiveHabits(activeHabits.map(h =>
+    //   h.id === habitId ? { ...h, active: !h.active } : h
+    // ));
+    toggleActiveHabit(habitId);
   };
 
   const handleExportData = () => {
@@ -42,9 +40,13 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     alert('Select a backup file to import');
   };
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-      console.log('Logging out...');
+  const handleLogout = async () => {
+    try {
+      await logout(); // this calls supabase.auth.signOut() and clears context user/session
+      alert('Signed out successfully');
+      // Optionally redirect user if you have routing, e.g. navigate to login page
+    } catch (error: any) {
+      alert(error.message || 'Sign out failed');
     }
   };
 
@@ -65,7 +67,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
 
       <div className="px-4 sm:px-6 pt-6 pb-8 max-w-3xl mx-auto space-y-8">
         {/* Profile Settings */}
-        <section>
+        {/* <section>
           <h2 className="text-lg font-semibold mb-4 text-white">Profile Settings</h2>
           <div className="bg-gray-900 rounded-2xl border border-gray-800 divide-y divide-gray-800">
             <button className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-800/50 transition-colors text-left">
@@ -97,34 +99,37 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               <span className="text-gray-500">→</span>
             </button>
           </div>
-        </section>
+        </section> */}
 
         {/* Habit Goals */}
         <section>
           <h2 className="text-lg font-semibold mb-4 text-white">Manage Your Habits</h2>
           <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 space-y-4">
-            {activeHabits.map(habit => (
-              <div key={habit.id} className="flex items-center justify-between py-2">
-                <span className="text-white font-medium">{habit.name}</span>
-                <button
-                  onClick={() => toggleHabit(habit.id)}
-                  aria-pressed={habit.active}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${
-                    habit.active ? 'bg-green-500' : 'bg-gray-700'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                      habit.active ? 'transform translate-x-6' : ''
+            {habits && habits.map(habit => {
+              const habitChoice = HABIT_CHOICES.find(c => c.id === habit.name);
+              return (
+                <div key={habit.id} className="flex items-center justify-between py-2">
+                  <span className="text-white font-medium">{habit.name}</span>
+                  <button
+                    onClick={() => toggleHabit(habit.id)}
+                    aria-pressed={habit.is_active ? habit.is_active : !!habit}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      habit.is_active ? 'bg-green-500' : 'bg-gray-700'
                     }`}
-                  ></div>
-                </button>
-              </div>
-            ))}
+                  >
+                    <div
+                      className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
+                        habit.is_active ? 'transform translate-x-6' : ''
+                      }`}
+                    ></div>
+                  </button>
+                </div>
+              )
+            })}
 
-            <button className="w-full mt-4 py-3 bg-gray-800 hover:bg-gray-750 rounded-xl font-medium transition-colors">
+            {/* <button className="w-full mt-4 py-3 bg-gray-800 hover:bg-gray-750 rounded-xl font-medium transition-colors">
               Edit Habits
-            </button>
+            </button> */}
           </div>
         </section>
 
@@ -213,7 +218,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               </button>
             </div>
 
-            <div className="px-5 py-4">
+            {/* <div className="px-5 py-4">
               <label className="block font-medium text-white mb-3">Font Size</label>
               <div className="grid grid-cols-3 gap-2">
                 {(['small', 'medium', 'large'] as const).map((size) => (
@@ -230,7 +235,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
                   </button>
                 ))}
               </div>
-            </div>
+            </div> */}
           </div>
         </section>
 
@@ -291,7 +296,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
               <div className="text-sm text-gray-500">1.0.0</div>
             </div>
 
-            <button className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-800/50 transition-colors text-left">
+            {/* <button className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-800/50 transition-colors text-left">
               <div className="font-medium text-white">Privacy Policy</div>
               <span className="text-gray-500">→</span>
             </button>
@@ -304,7 +309,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
             <button className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-800/50 transition-colors text-left">
               <div className="font-medium text-white">Support Contact</div>
               <span className="text-gray-500">→</span>
-            </button>
+            </button> */}
           </div>
         </section>
 

@@ -1,17 +1,9 @@
 import React, { useState } from 'react';
-import { Check, Flame, Calendar, Home, History, Settings, TrendingUp, Award } from 'lucide-react';
+import { Check, Flame, TrendingUp, Award } from 'lucide-react';
 import HabitLogScreen from './HabitLog';
-import SettingsScreen from './SettingsScreen';
-
-interface Habit {
-  id: string;
-  name: string;
-  unit?: string;
-  type: 'numeric' | 'boolean';
-  value?: number;
-  goal?: number;
-  completed: boolean;
-}
+import { useAuth } from '../context/AuthContext';
+import { HABIT_CHOICES } from './GoalSetupScreen';
+import { useDashboard } from '../context/DashboardContext';
 
 type DayStatus = 'completed' | 'current' | 'upcoming';
 
@@ -20,28 +12,40 @@ interface Day {
   status: DayStatus;
 }
 
+function calculateProgramDay(startDateStr: string, programLength: number = 75) {
+  const currentDateStr = new Date().toISOString().split('T')[0];
+  const currentDate = new Date(currentDateStr);  // Parse back to Date object
+  const startDate = new Date(startDateStr);
+
+  // Calculate difference in milliseconds
+  const diffTime = currentDate.getTime() - startDate.getTime();
+
+  // Convert milliseconds to full days
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  // Clamp the max day value to program length
+  return Math.min(Math.max(diffDays, 1), programLength);
+}
+
+function getCurrentDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const { activeHabits, habits, dailyLog, habitEntries, streak  } = useDashboard();
   const [currentDay] = useState<number>(12);
-  const [streak] = useState<number>(11);
   const [showLogScreen, setShowLogScreen] = useState(false);
 
-  const [habits, setHabits] = useState<Habit[]>([
-    { id: 'water', name: 'Drink water', unit: 'oz', type: 'numeric', value: 0, goal: 128, completed: false },
-    { id: 'steps', name: 'Track daily steps', unit: 'steps', type: 'numeric', value: 0, goal: 10000, completed: false },
-    { id: 'workout', name: 'Complete workout', type: 'boolean', completed: false },
-    { id: 'read', name: 'Read', unit: 'min', type: 'numeric', value: 0, goal: 30, completed: false },
-    { id: 'supplements', name: 'Take supplements', type: 'boolean', completed: true },
-  ]);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'history' | 'settings'>('home');
-
-  const completedHabits = habits.filter(h => h.completed).length;
-  const totalHabits = habits.length;
+  const completedHabits = habitEntries && activeHabits ? habitEntries.filter(e => activeHabits.find(h => e.habit_id === h.id) &&  e.is_completed).length : 0;
+  const totalHabits = activeHabits ? activeHabits.length : 1;
   const progressPercentage = (completedHabits / totalHabits) * 100;
-
-  const handleSaveHabits = (updatedHabits: Habit[]) => {
-    setHabits(updatedHabits);
-  };
 
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -49,25 +53,6 @@ const Dashboard: React.FC = () => {
     month: 'long', 
     day: 'numeric' 
   });
-
-  const handleNumericChange = (habitId: string, value: string) => {
-    const numValue = parseInt(value, 10) || 0;
-    setHabits(habits.map(h =>
-      h.id === habitId ? { ...h, value: numValue } : h
-    ));
-  };
-
-  const toggleBoolean = (habitId: string) => {
-    setHabits(habits.map(h =>
-      h.id === habitId ? { ...h, completed: !h.completed } : h
-    ));
-  };
-
-  const markNumericComplete = (habitId: string) => {
-    setHabits(habits.map(h =>
-      h.id === habitId ? { ...h, completed: (h.value ?? 0) >= (h.goal ?? 0) } : h
-    ));
-  };
 
   const getDaysArray = (): Day[] => {
     const days: Day[] = [];
@@ -82,7 +67,7 @@ const Dashboard: React.FC = () => {
 
   const getMotivationalMessage = (): string => {
     if (completedHabits === totalHabits) {
-      return "All habits completed today";
+      return "All activeHabits completed today";
     } else if (completedHabits > 0) {
       const remaining = totalHabits - completedHabits;
       return `${remaining} habit${remaining > 1 ? 's' : ''} remaining`;
@@ -93,9 +78,7 @@ const Dashboard: React.FC = () => {
 
   if (showLogScreen) {
     return (
-      <HabitLogScreen 
-        habits={habits}
-        onSave={handleSaveHabits}
+      <HabitLogScreen
         onBack={() => setShowLogScreen(false)}
         currentDate={currentDate}
       />
@@ -121,7 +104,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-3 gap-3 mb-6">
           <div className="bg-gray-900 rounded-2xl p-4">
             <div className="text-gray-400 text-xs mb-1">Day</div>
-            <div className="text-2xl font-bold">{currentDay}</div>
+            <div className="text-2xl font-bold">{user && calculateProgramDay(user?.created_at)}</div>
             <div className="text-gray-500 text-xs">of 75</div>
           </div>
 
@@ -163,12 +146,17 @@ const Dashboard: React.FC = () => {
                 <TrendingUp className="w-5 h-5 text-gray-500" />
               </div>
               
-              {habits.map(habit => (
-                <button
+              {activeHabits && activeHabits.map(habit => {
+                const is_completed = habitEntries?.some(h => (h.habit_id === habit.id) && h.is_completed);
+                const habitValue = habitEntries && habitEntries.length > 0 ? habitEntries?.filter(h => h.habit_id === habit.id)[0].value : 0;
+                const habitLabel = HABIT_CHOICES.find(h => h.id === habit.name)?.label;
+                const habitUnit = HABIT_CHOICES.find(h => h.id === habit.name)?.unit;
+                return (
+                  <button
                   key={habit.id}
                   onClick={() => setShowLogScreen(true)}
                   className={`w-full bg-gray-900 rounded-2xl p-4 sm:p-5 transition-all border text-left hover:border-gray-700 ${
-                    habit.completed 
+                    is_completed 
                       ? 'border-green-500/30' 
                       : 'border-gray-800'
                   }`}
@@ -179,32 +167,30 @@ const Dashboard: React.FC = () => {
                         {habit.name}
                         {habit.unit && <span className="text-gray-500 font-normal"> ({habit.unit})</span>}
                       </h3>
-                      <p className={`text-sm ${habit.completed ? 'text-green-500' : 'text-gray-500'}`}>
-                        {habit.completed 
-                          ? habit.type === 'numeric' 
-                            ? `${habit.value} ${habit.unit}`
-                            : '✓ Done'
-                          : 'Not logged yet'
+                      <p className={`text-sm ${is_completed ? 'text-green-500' : 'text-gray-500'}`}>
+                        {is_completed 
+                          ? '✓ Done'
+                          : habitValue && habitValue > 0 ? `${habitValue} ${habit.unit}` : 'Not logged yet'
                         }
                       </p>
                     </div>
                     
-                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
-                      habit.completed
+                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                      is_completed
                         ? 'bg-green-500 border-green-500'
                         : 'border-gray-700'
                     }`}>
-                      {habit.completed && (
+                      {is_completed && (
                         <Check className="w-5 h-5 text-black" />
                       )}
                     </div>
                   </div>
                 </button>
-              ))}
+                )})}
             </div>
 
           {/* Sidebar - Calendar */}
-          <div className="lg:col-span-1">
+          {/* <div className="lg:col-span-1">
             <div className="bg-gray-900 rounded-2xl p-5 sticky top-6">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-semibold">Progress</h2>
@@ -262,7 +248,7 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

@@ -1,54 +1,113 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
-
-interface Habit {
-  id: string;
-  name: string;
-  unit?: string;
-  type: 'numeric' | 'boolean';
-  value?: number;
-  goal?: number;
-  completed: boolean;
-}
+import { HabitEntriesTable, type HabitEntry } from '../lib/supabaseOperations';
+import { useDashboard } from '../context/DashboardContext';
+import { HABIT_CHOICES } from './GoalSetupScreen';
 
 interface HabitLogScreenProps {
-  habits: Habit[];
-  onSave: (habits: Habit[]) => void;
   onBack: () => void;
   currentDate: string;
 }
 
-const HabitLogScreen: React.FC<HabitLogScreenProps> = ({ habits, onSave, onBack, currentDate }) => {
-  const [localHabits, setLocalHabits] = useState<Habit[]>(habits);
+const HabitLogScreen: React.FC<HabitLogScreenProps> = ({ onBack, currentDate }) => {
+  const { activeHabits, habitEntries, fetchHabitEntries } = useDashboard();
+
   const [showSaveSuccess, setShowSaveSuccess] = useState<boolean>(false);
+  const [tempEntries, setTempEntries] = useState<HabitEntry[] | undefined>(habitEntries);
+  const [changed, hasChanged] = useState(false);
 
-  const handleNumericChange = (habitId: string, value: string) => {
-    const parsedValue = parseInt(value, 10) || 0;
-    setLocalHabits(localHabits.map(h =>
-      h.id === habitId
-        ? { ...h, value: parsedValue, completed: parsedValue >= (h.goal ?? 0) }
-        : h
-    ));
-  };
-
-  const toggleBoolean = (habitId: string) => {
-    setLocalHabits(localHabits.map(h =>
-      h.id === habitId ? { ...h, completed: !h.completed } : h
-    ));
-  };
-
-  const allHabitsValid = localHabits.every(h =>
-    h.type === 'boolean' ? h.completed : (h.value ?? 0) >= (h.goal ?? 0)
+  const allHabitsValid = habitEntries && habitEntries.every(h =>
+    h.is_completed
   );
 
-  const handleSave = () => {
-    onSave(localHabits);
-    setShowSaveSuccess(true);
-    setTimeout(() => {
-      setShowSaveSuccess(false);
-      onBack();
-    }, 1500);
+  const handleNumericChange = (habitId: string, value: string, goal: number) => {
+  const parsedValue = parseInt(value, 10) || 0;
+
+  const updates = {
+    value: parsedValue,
+    is_completed: parsedValue >= goal,
   };
+
+  setTempEntries(prev =>
+    prev
+      ? prev.map(entry =>
+          entry.habit_id === habitId
+            ? { ...entry, ...updates }
+            : entry
+        )
+      : []
+  );
+};
+
+
+  const toggleBoolean = async (habitId: string) => {
+    setTempEntries(prev =>
+      prev
+        ? prev.map(entry =>
+            entry.habit_id === habitId
+              ? {
+                  ...entry,
+                  value: entry.value === 0 ? 1 : 0,
+                  is_completed: !entry.is_completed,
+                }
+              : entry
+          )
+        : []
+    );
+  };
+
+  const handleSave = async () => {
+    console.log('starting save...')
+  if (!tempEntries) return; // Guard if no entries
+
+  try {
+    // Prepare array of updates with id and changed fields
+    const updates = tempEntries.map(entry => ({
+      id: entry.id,
+      changes: {
+        value: entry.value,
+        is_completed: entry.is_completed,
+      },
+    }));
+
+    // Call your batch update function with this array
+    const updatedEntries = await HabitEntriesTable.batchUpdateHabitEntries(updates);
+
+    // Optionally update local state with updatedEntries from backend
+    setTempEntries(updatedEntries);
+    await fetchHabitEntries();
+
+    // Show success message and go back after delay
+    setShowSaveSuccess(true);
+    onBack();
+
+  } catch (error) {
+    console.error('Failed to save habit entries in batch:', error);
+    // Optionally show error UI
+  }
+};
+
+const checkForChanges = () => {
+  if (!tempEntries || !habitEntries) {
+    if (changed !== false) hasChanged(false);
+    return;
+  }
+  if (tempEntries.length !== habitEntries.length) {
+    console.log('lengths are not same')
+    if (changed !== true) hasChanged(true);
+    return;
+  }
+  const isSame = tempEntries.every((obj, idx) => {
+    const obj2 = habitEntries[idx];
+    return (Object.keys(obj) as (keyof HabitEntry)[]).every(key => obj[key] === obj2[key]);
+  });
+
+  if (changed !== !isSame) hasChanged(!isSame);
+};
+
+useEffect(() => {
+  checkForChanges();
+}, [tempEntries]);
 
   return (
     <div className="min-h-screen bg-black text-white pb-32">
@@ -68,84 +127,98 @@ const HabitLogScreen: React.FC<HabitLogScreenProps> = ({ habits, onSave, onBack,
       {/* Habit Inputs List */}
       <div className="px-4 sm:px-6 pt-6 max-w-3xl mx-auto">
         <div className="space-y-4">
-          {localHabits.map(habit => (
-            <div
-              key={habit.id}
-              className={`bg-gray-900 rounded-2xl p-5 border-2 transition-all ${
-                habit.completed ? 'border-green-500/50' : 'border-gray-800'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <label htmlFor={habit.id} className="block font-semibold text-white mb-1">
-                    {habit.name}
-                    {habit.unit && <span className="text-gray-500 font-normal"> ({habit.unit})</span>}
-                  </label>
-                  {habit.type === 'numeric' && (
-                    <p className="text-xs text-gray-500">Goal: {habit.goal} {habit.unit}</p>
-                  )}
-                </div>
-                {habit.completed && (
-                  <div className="bg-green-500 rounded-full p-2">
-                    <Check className="w-4 h-4 text-black" />
-                  </div>
-                )}
+        {tempEntries && activeHabits && tempEntries
+        .filter(e => activeHabits.some(h => e.habit_id === h.id))
+        .map(entry => {
+          const habitTable = activeHabits.find(h => h.id === entry.habit_id);
+          const habitChoice = HABIT_CHOICES.find(c => c.label === habitTable?.name);
+          
+          return (
+          <div
+          key={entry.id}
+          className={`bg-gray-900 rounded-2xl p-5 border-2 transition-all ${
+          entry.is_completed ? 'border-green-500/50' : 'border-gray-800'
+          }`}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+            <label htmlFor={entry.id} className="block font-semibold text-white mb-1">
+            {habitTable?.name}
+            {habitTable?.unit && (
+            <span className="text-gray-500 font-normal"> ({habitTable.unit})</span>
+            )}
+            </label>
+            <p className="text-xs text-gray-500">
+            {habitTable?.habit_type === 'boolean'
+            ? `Goal: ${habitTable?.unit}`
+            : `Goal: ${habitChoice?.goal} ${habitTable?.unit}`}
+            </p>
+            </div>
+            {entry.is_completed && entry.value && habitChoice && habitChoice.type !== 'boolean' && entry.value >= habitChoice.goal && (
+              <div className="bg-green-500 rounded-full p-2">
+              <Check className="w-4 h-4 text-black" />
               </div>
+            )}
+            </div>
 
-              {habit.type === 'numeric' ? (
-                <div className="space-y-2">
-                  <input
-                    id={habit.id}
-                    type="number"
-                    value={habit.value ?? ''}
-                    onChange={e => handleNumericChange(habit.id, e.target.value)}
-                    placeholder="Enter amount"
-                    className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-4 py-4 text-lg focus:border-green-500 focus:outline-none transition-colors"
-                    min={0}
-                  />
-                  {habit.value !== undefined && habit.value > 0 && habit.value < (habit.goal ?? 0) && (
-                    <p className="text-xs text-yellow-500 flex items-center gap-1">
-                      <span>⚠</span>
-                      {`${(habit.goal ?? 0) - habit.value} ${habit.unit} more to reach goal`}
-                    </p>
-                  )}
-                  {habit.completed && (
-                    <p className="text-xs text-green-500 flex items-center gap-1">
-                      <Check className="w-3 h-3" />
-                      Goal reached!
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <button
-                  onClick={() => toggleBoolean(habit.id)}
-                  className={`w-full py-4 rounded-xl font-medium text-lg transition-all ${
-                    habit.completed
-                      ? 'bg-green-500 text-black'
-                      : 'bg-gray-800 text-white hover:bg-gray-750 border-2 border-gray-700'
-                  }`}
-                >
-                  {habit.completed ? '✓ Completed' : 'Mark as Complete'}
-                </button>
+            {/* Body */}
+            {habitTable?.habit_type === 'numeric' && habitChoice && habitChoice.type !== 'boolean' ? (
+            <div className="space-y-2">
+              <input
+              id={entry.id}
+              type="number"
+              value={entry.value && entry.value > 0 ? entry.value : ''}
+              onChange={e => handleNumericChange(entry.habit_id, e.target.value, habitChoice?.goal)}
+              placeholder="Enter amount"
+              className="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-4 py-4 text-lg focus:border-green-500 focus:outline-none transition-colors"
+              min={0}
+              />
+              {habitChoice && (entry.value ?? 0) < habitChoice.goal  && (
+              <p className="text-xs text-yellow-500 flex items-center gap-1">
+              <span>⚠</span>
+              {`${(habitChoice?.goal ?? 0) - (entry.value ?? 0)} ${habitTable?.unit} more to reach goal`}
+              </p>
+              )}
+              {entry.is_completed && (
+              <p className="text-xs text-green-500 flex items-center gap-1">
+              <Check className="w-3 h-3" />
+              Goal reached!
+              </p>
               )}
             </div>
-          ))}
+            ) : (
+            <button
+            onClick={() => toggleBoolean(entry.habit_id)}
+            className={`w-full py-4 rounded-xl font-medium text-lg transition-all ${
+            entry.is_completed
+            ? 'bg-green-500 text-black'
+            : 'bg-gray-800 text-white hover:bg-gray-750 border-2 border-gray-700'
+            }`}
+            >
+            {entry.is_completed ? '✓ Completed' : 'Mark as Complete'}
+            </button>
+            )}
+          </div>
+          );
+        })}
+
         </div>
       </div>
 
       {/* Save Button - Fixed at Bottom */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black to-transparent pt-6 px-4 sm:px-6 pb-6">
+      <div className="fixed bottom-0 left-0 right-0 bg-linear-to-t from-black via-black to-transparent pt-6 px-4 sm:px-6 pb-6">
         <div className="max-w-3xl mx-auto">
           <button
             onClick={handleSave}
-            disabled={!allHabitsValid}
+            disabled={!changed}
             className={`w-full py-4 rounded-xl font-semibold text-lg transition-all ${
-              allHabitsValid
+              changed 
                 ? 'bg-green-500 text-black hover:bg-green-400 shadow-lg shadow-green-500/20'
-                : 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                : 'bg-gray-800/40 text-gray-600 cursor-not-allowed'
             }`}
           >
-            {allHabitsValid ? "Save Today's Log" : 'Complete all habits to save'}
+            {changed ? "Update tasks" : 'No changes occurred.'}
           </button>
         </div>
       </div>

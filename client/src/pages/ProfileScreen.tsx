@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, Check, Flame, Award, TrendingUp } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface UserStats {
   totalCompleted: number;
@@ -13,9 +14,10 @@ interface ProfileScreenProps {
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
+  const { logout, profile, updateUserName } = useAuth();
+
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
-  const [userName, setUserName] = useState<string>('John Doe');
-  const [tempName, setTempName] = useState<string>(userName);
+  const [tempName, setTempName] = useState<string>(profile?.name ?? '');
 
   const userStats: UserStats = {
     totalCompleted: 11,
@@ -24,19 +26,24 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
     overallProgress: 14.7
   };
 
-  const handleSaveName = () => {
-    setUserName(tempName);
+  const handleSaveName = async () => {
+    await updateUserName(tempName);
     setIsEditingName(false);
   };
 
   const handleCancelEdit = () => {
-    setTempName(userName);
+    if (!profile?.name) return;
+    setTempName(profile?.name);
     setIsEditingName(false);
   };
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-      console.log('Logging out...');
+  const handleLogout = async () => {
+    try {
+      await logout(); // this calls supabase.auth.signOut() and clears context user/session
+      alert('Signed out successfully');
+      // Optionally redirect user if you have routing, e.g. navigate to login page
+    } catch (error: any) {
+      alert(error.message || 'Sign out failed');
     }
   };
 
@@ -97,7 +104,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-bold">{userName}</h2>
+                  <h2 className="text-2xl font-bold">{profile?.name?.split('').find(w => w === '@') ? 'Enter Name': profile?.name}</h2>
                   <button
                     onClick={() => setIsEditingName(true)}
                     className="text-gray-400 hover:text-green-500 transition-colors p-1"
@@ -112,12 +119,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
 
               {/* Email */}
               <div className="flex items-center gap-2 mt-2">
-                <p className="text-gray-400">john.doe@example.com</p>
-                <button className="text-gray-400 hover:text-green-500 transition-colors p-1" aria-label="Edit email">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
+                <p className="text-gray-400">{profile?.email}</p>
               </div>
             </div>
           </div>
@@ -220,7 +222,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
         </section>
 
         {/* App Info */}
-        <section>
+        {/* <section>
           <h2 className="text-lg font-semibold mb-4 text-white">App Info</h2>
           <div className="bg-gray-900 rounded-2xl border border-gray-800 divide-y divide-gray-800">
             <div className="px-5 py-4 flex items-center justify-between">
@@ -243,7 +245,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ onBack }) => {
               <span className="text-gray-500">→</span>
             </button>
           </div>
-        </section>
+        </section> */}
 
         {/* Footer */}
         <div className="text-center text-gray-500 text-sm pt-4 pb-8">

@@ -1,13 +1,20 @@
 import { Navigation } from "./components/Navigation"
+import { AuthProvider } from "./context/AuthContext"
+import { DashboardProvider } from "./context/DashboardContext"
 import Dashboard from "./pages/Dashboard"
 
 function App() {
 
   return (
     <>
-    <Navigation>
-      <Dashboard />
-    </Navigation>
+    <AuthProvider>
+      <DashboardProvider>
+        <Navigation>
+          <Dashboard />
+        </Navigation>
+      </DashboardProvider>
+    </AuthProvider>
+    
     </>
   )
 }
