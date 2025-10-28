@@ -63,13 +63,41 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const activeHabits = useMemo(() => habits && habits.filter(h => h.is_active), [habits]);
 
   const fetchStreak = useCallback(async () => {
-    if (!user) return;
-    try {
-      const logs = await DailyLogsTable.getDailyLogs(user.id);
-      setStreak(logs.length);
-    } catch (error) {
-      console.error('Error fetching streak:', error);
+  if (!user) return 1;
+
+  // Parse start date
+  const startDateStr = user.created_at.split('T')[0];
+  const startDate = new Date(startDateStr);
+
+  // Fetch and sort logs chronologically
+  const logs = await DailyLogsTable.getDailyLogs(user.id);
+  // Assuming logs have a date in `YYYY-MM-DD` format:
+  const logDates = logs
+    .map(log => log.date)
+    .sort(); // sorts as string, fine for YYYY-MM-DD
+
+  // Find the most recent consecutive streak starting from user (or program) start
+  let streakNum = 1;
+  let lastDate = startDate;
+  for (let i = 0; i < logDates.length; i++) {
+    const currDate = new Date(logDates[i]);
+    // Calculate days elapsed from lastDate
+    const daysDiff = Math.floor(
+      (currDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (daysDiff === 1) {
+      streakNum += 1;
+    } else if (daysDiff > 1) {
+      // Break in the streak, restart count from here
+      streakNum = 1;
     }
+    lastDate = currDate;
+  }
+
+  // Clamp to maximum program length
+  setStreak(streakNum);
+  return Math.min(streakNum, 75);
+
   }, [user]);
 
   const fetchDailyLog = useCallback(async () => {
