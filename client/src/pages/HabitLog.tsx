@@ -16,9 +16,9 @@ const HabitLogScreen: React.FC<HabitLogScreenProps> = ({ onBack, currentDate }) 
   const [tempEntries, setTempEntries] = useState<HabitEntry[] | undefined>(habitEntries);
   const [changed, hasChanged] = useState(false);
 
-  const allHabitsValid = habitEntries && habitEntries.every(h =>
-    h.is_completed
-  );
+  // const allHabitsValid = habitEntries && habitEntries.every(h =>
+  //   h.is_completed
+  // );
 
   const handleNumericChange = (habitId: string, value: string, goal: number) => {
   const parsedValue = parseInt(value, 10) || 0;
@@ -132,7 +132,7 @@ useEffect(() => {
         .map(entry => {
           const habitTable = activeHabits.find(h => h.id === entry.habit_id);
           const habitChoice = HABIT_CHOICES.find(c => c.label === habitTable?.name);
-          
+
           return (
           <div
           key={entry.id}

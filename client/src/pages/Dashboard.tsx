@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
-import { Check, Flame, TrendingUp, Award } from 'lucide-react';
+import { Check, Flame, TrendingUp } from 'lucide-react';
 import HabitLogScreen from './HabitLog';
 import { useAuth } from '../context/AuthContext';
-import { HABIT_CHOICES } from './GoalSetupScreen';
 import { useDashboard } from '../context/DashboardContext';
-
-type DayStatus = 'completed' | 'current' | 'upcoming';
-
-interface Day {
-  day: number;
-  status: DayStatus;
-}
 
 function calculateProgramDay(startDateStr: string, programLength: number = 75) {
   const currentDateStr = new Date().toISOString().split('T')[0];
@@ -27,19 +19,19 @@ function calculateProgramDay(startDateStr: string, programLength: number = 75) {
   return Math.min(Math.max(diffDays, 1), programLength);
 }
 
-function getCurrentDate() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
+// function getCurrentDate() {
+//   const today = new Date();
+//   const year = today.getFullYear();
+//   const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+//   const day = String(today.getDate()).padStart(2, '0');
+//   return `${year}-${month}-${day}`;
+// }
 
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { activeHabits, habits, dailyLog, habitEntries, streak  } = useDashboard();
-  const [currentDay] = useState<number>(12);
+  const { activeHabits, habitEntries, streak  } = useDashboard();
+  // const [currentDay] = useState<number>(12);
   const [showLogScreen, setShowLogScreen] = useState(false);
 
 
@@ -54,16 +46,16 @@ const Dashboard: React.FC = () => {
     day: 'numeric' 
   });
 
-  const getDaysArray = (): Day[] => {
-    const days: Day[] = [];
-    for (let i = 1; i <= 75; i++) {
-      days.push({
-        day: i,
-        status: i < currentDay ? 'completed' : i === currentDay ? 'current' : 'upcoming',
-      });
-    }
-    return days;
-  };
+  // const getDaysArray = (): Day[] => {
+  //   const days: Day[] = [];
+  //   for (let i = 1; i <= 75; i++) {
+  //     days.push({
+  //       day: i,
+  //       status: i < currentDay ? 'completed' : i === currentDay ? 'current' : 'upcoming',
+  //     });
+  //   }
+  //   return days;
+  // };
 
   const getMotivationalMessage = (): string => {
     if (completedHabits === totalHabits) {
@@ -149,8 +141,6 @@ const Dashboard: React.FC = () => {
               {activeHabits && activeHabits.map(habit => {
                 const is_completed = habitEntries?.some(h => (h.habit_id === habit.id) && h.is_completed);
                 const habitValue = habitEntries && habitEntries.length > 0 ? habitEntries?.filter(h => h.habit_id === habit.id)[0].value : 0;
-                const habitLabel = HABIT_CHOICES.find(h => h.id === habit.name)?.label;
-                const habitUnit = HABIT_CHOICES.find(h => h.id === habit.name)?.unit;
                 return (
                   <button
                   key={habit.id}

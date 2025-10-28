@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../context/DashboardContext';
-import { HABIT_CHOICES } from './GoalSetupScreen';
 
-interface Habit {
-  id: string;
-  name: string;
-  active: boolean;
-}
 
 interface SettingsScreenProps {
   onBack: () => void;
 }
 
 const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
-  const { logout } = useAuth();
+  // const { logout } = useAuth();
   const { habits, toggleActiveHabit } = useDashboard();
 
   const [remindersEnabled, setRemindersEnabled] = useState<boolean>(true);
@@ -40,15 +33,15 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
     alert('Select a backup file to import');
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout(); // this calls supabase.auth.signOut() and clears context user/session
-      alert('Signed out successfully');
-      // Optionally redirect user if you have routing, e.g. navigate to login page
-    } catch (error: any) {
-      alert(error.message || 'Sign out failed');
-    }
-  };
+  // const handleLogout = async () => {
+  //   try {
+  //     await logout(); // this calls supabase.auth.signOut() and clears context user/session
+  //     alert('Signed out successfully');
+  //     // Optionally redirect user if you have routing, e.g. navigate to login page
+  //   } catch (error: any) {
+  //     alert(error.message || 'Sign out failed');
+  //   }
+  // };
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -106,7 +99,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({ onBack }) => {
           <h2 className="text-lg font-semibold mb-4 text-white">Manage Your Habits</h2>
           <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 space-y-4">
             {habits && habits.map(habit => {
-              const habitChoice = HABIT_CHOICES.find(c => c.id === habit.name);
               return (
                 <div key={habit.id} className="flex items-center justify-between py-2">
                   <span className="text-white font-medium">{habit.name}</span>

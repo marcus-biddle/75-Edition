@@ -1,5 +1,5 @@
-import React, { useEffect, useState, type ReactNode } from 'react';
-import { Check, Flame, Calendar, Home, History, Settings, TrendingUp, Award, Menu, User, X, LogOut, LogOutIcon } from 'lucide-react';
+import React, { useState, type ReactNode } from 'react';
+import { Home, History, Settings, Menu, X, LogOutIcon } from 'lucide-react';
 import SettingsScreen from '../pages/SettingsScreen';
 import ProgressCalendarView from '../pages/HistoryScreen';
 import ProfileScreen from '../pages/ProfileScreen';

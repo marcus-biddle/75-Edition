@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../context/DashboardContext';
@@ -14,8 +14,8 @@ export const HABIT_CHOICES = [
 
 // Screen only appears when no profile is made.
 const GoalSetupScreen = () => {
-    const { user, fetchProfile, createProfile } = useAuth();
-    const { initDashboard, dailyLog } = useDashboard();
+    const { user, fetchProfile } = useAuth();
+    const { dailyLog } = useDashboard();
   const [selectedHabitIds, setSelectedHabitIds] = useState<(typeof HABIT_CHOICES[number])['id'][]>([]);
   const [showError, setShowError] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -40,27 +40,11 @@ const toggleHabit = (habitId: (typeof HABIT_CHOICES[number])['id']) => {
       return;
     }
     
-    await initDashboard();
-    
     
     await fetchProfile(user.id);
 
     setShowSuccess(true);
   };
-
-  const startBoard = async () => {
-    if (!user) return;
-
-    await createProfile({              
-        email: user.email,
-        name: user.email,       
-    })
-    await initDashboard()
-};
-
-  useEffect(() => {
-
-  }, [])
 
   if (showSuccess) {
     return (

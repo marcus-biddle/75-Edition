@@ -1,5 +1,5 @@
 // DashboardContext.tsx
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
@@ -27,9 +27,7 @@ interface DashboardContextType {
   activeHabits: Habit[] | undefined;
   streak: number | null;
   createHabits: () => Promise<Habit[] | undefined>;
-  initDashboard: () => Promise<void>;
   toggleActiveHabit: (habitId: string) => Promise<void>;
-  refreshDashboard: () => Promise<void>;
   fetchDailyLog: () => Promise<DailyLog | undefined>;
   fetchHabits: () => Promise<Habit[] | undefined>;
   fetchHabitEntries: () => Promise<HabitEntry[] | undefined>;
@@ -52,10 +50,10 @@ interface DashboardProviderProps {
 }
 
 export const DashboardProvider = ({ children }: DashboardProviderProps) => {
-  const { user, isUserNew } = useAuth();
+  const { user } = useAuth();
 
-  const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [loading] = useState(false);
+  // const [initialized, setInitialized] = useState(false);
 
   const [streak, setStreak] = useState<number | null>(null);
   const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
@@ -212,54 +210,54 @@ const createHabits = useCallback(async () => {
   return habitsData;
 }, [user?.id]);
 
-const initDashboard = useCallback(async () => {
-  if (!user || loading) return;
+// const initDashboard = useCallback(async () => {
+//   if (!user || loading) return;
 
-  setLoading(true);
+//   setLoading(true);
 
-  try {
-    await fetchDailyLog();
+//   try {
+//     await fetchDailyLog();
 
-    if (!dailyLog) await createDailyLog();
+//     if (!dailyLog) await createDailyLog();
 
-    //   const newHabits: Habit[] = await createHabits();
+//     //   const newHabits: Habit[] = await createHabits();
 
-    //   createHabitEntries(newHabits);
-    //   fetchStreak()
+//     //   createHabitEntries(newHabits);
+//     //   fetchStreak()
 
-    console.log('New User Dashboard initialized...');
+//     console.log('New User Dashboard initialized...');
     
-  } catch (error) {
-    console.error('Error initializing dashboard:', error);
-  } finally {
-    setLoading(false);
-    setInitialized(true);
-  }
-}, [user, loading, fetchDailyLog, fetchHabits, fetchHabitEntries]);
+//   } catch (error) {
+//     console.error('Error initializing dashboard:', error);
+//   } finally {
+//     setLoading(false);
+//     setInitialized(true);
+//   }
+// }, [user, loading, fetchDailyLog, fetchHabits, fetchHabitEntries]);
 
-const refreshDashboard = useCallback(async () => {
-  if (!user || loading) return;
+// const refreshDashboard = useCallback(async () => {
+//   if (!user || loading) return;
 
-  setLoading(true);
+//   setLoading(true);
 
-  try {
-    // Fetch streak, habits, and habit entries in parallel with valid daily log id
-    await Promise.all([
-      fetchDailyLog(),
-      fetchHabits(),
-      fetchHabitEntries(),
-      fetchStreak()
-    ]);
+//   try {
+//     // Fetch streak, habits, and habit entries in parallel with valid daily log id
+//     await Promise.all([
+//       fetchDailyLog(),
+//       fetchHabits(),
+//       fetchHabitEntries(),
+//       fetchStreak()
+//     ]);
 
-    console.log('Dashboard refreshed successfully');
+//     console.log('Dashboard refreshed successfully');
     
-  } catch (error) {
-    console.error('Error refreshing dashboard:', error);
-  } finally {
-    setLoading(false);
-    setInitialized(true);
-  }
-}, [user, loading, fetchDailyLog, fetchHabits, fetchHabitEntries]);
+//   } catch (error) {
+//     console.error('Error refreshing dashboard:', error);
+//   } finally {
+//     setLoading(false);
+//     setInitialized(true);
+//   }
+// }, [user, loading, fetchDailyLog, fetchHabits, fetchHabitEntries]);
 
   // Toggle habit active/inactive
   const toggleActiveHabit = useCallback(
@@ -325,9 +323,7 @@ useEffect(() => {
     dailyLog,
     habitEntries,
     createHabits,
-    initDashboard,
     toggleActiveHabit,
-    refreshDashboard,
     fetchDailyLog,
     fetchHabits,
     fetchHabitEntries,
@@ -342,9 +338,7 @@ useEffect(() => {
     dailyLog,
     habitEntries,
     createHabits,
-    initDashboard,
     toggleActiveHabit,
-    refreshDashboard,
     fetchDailyLog,
     fetchHabits,
     fetchHabitEntries,
